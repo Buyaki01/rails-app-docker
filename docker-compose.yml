@@ -1,0 +1,50 @@
+version: '3.9'
+networks:
+  development:
+volumes:
+  db_data:
+  gem_cache:
+  shared_data:
+services:
+  rails_redis:
+    image: redis:4.0-alpine
+    command: redis-server
+    networks:
+      - development
+    volumes:
+      - shared_data:/var/shared/redis
+  rails_app_db:
+    image: postgres:12.9
+    container_name: rails_app_db
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - shared_data:/var/shared
+    networks:
+      - development
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - 5432:5432
+  rails_app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rails_app
+    volumes:
+      - .:/var/app
+      - shared_data:/var/shared
+      - gem_cache:/usr/local/bundle/gems
+    networks:
+      - development
+    ports:
+      - 3000:3000
+    stdin_open: true
+    tty: true
+    env_file: .env
+    entrypoint: entrypoint.sh
+    command: ['rails', 'server', '-p', '3000', '-b', '0.0.0.0']
+    environment:
+      RAILS_ENV: development
+    depends_on:
+      - rails_app_db
